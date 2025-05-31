@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Modern Calculator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+
+  body {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .calculator {
+    background: #222;
+    border-radius: 16px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    padding: 1.5rem;
+    width: 320px;
+    color: white;
+  }
+
+  .display {
+    background: #1e1e1e;
+    height: 70px;
+    border-radius: 12px;
+    font-size: 2.5rem;
+    line-height: 70px;
+    padding: 0 20px;
+    text-align: right;
+    box-shadow: inset 0 -4px 8px rgba(255,255,255,0.1);
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+  }
+
+  .buttons {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-gap: 12px;
+  }
+
+  button {
+    background: #333;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.4rem;
+    color: white;
+    padding: 18px 0;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: background 0.3s ease, transform 0.1s ease;
+    user-select: none;
+  }
+
+  button:active {
+    transform: scale(0.95);
+  }
+
+  button.operator {
+    background: #ff9500;
+    color: white;
+    box-shadow: 0 6px 14px rgba(255, 149, 0, 0.7);
+  }
+
+  button.operator:active {
+    background: #e08900;
+  }
+
+  button.equal {
+    background: #34c759;
+    color: white;
+    grid-column: span 2;
+    box-shadow: 0 6px 14px rgba(52, 199, 89, 0.7);
+  }
+
+  button.equal:active {
+    background: #2da94c;
+  }
+
+  button.clear {
+    background: #ff3b30;
+    color: white;
+    box-shadow: 0 6px 14px rgba(255, 59, 48, 0.7);
+  }
+
+  button.clear:active {
+    background: #e0362d;
+  }
+</style>
+</head>
+<body>
+  <div class="calculator" role="application" aria-label="Calculator">
+    <div class="display" id="display" aria-live="polite" aria-atomic="true">0</div>
+    <div class="buttons">
+      <button class="clear" id="clear" aria-label="Clear">C</button>
+      <button aria-label="Open parenthesis">(</button>
+      <button aria-label="Close parenthesis">)</button>
+      <button class="operator" aria-label="Divide">÷</button>
+
+      <button aria-label="Seven">7</button>
+      <button aria-label="Eight">8</button>
+      <button aria-label="Nine">9</button>
+      <button class="operator" aria-label="Multiply">×</button>
+
+      <button aria-label="Four">4</button>
+      <button aria-label="Five">5</button>
+      <button aria-label="Six">6</button>
+      <button class="operator" aria-label="Subtract">−</button>
+
+      <button aria-label="One">1</button>
+      <button aria-label="Two">2</button>
+      <button aria-label="Three">3</button>
+      <button class="operator" aria-label="Add">+</button>
+
+      <button aria-label="Zero" style="grid-column: span 2;">0</button>
+      <button aria-label="Decimal point">.</button>
+      <button class="equal" id="equals" aria-label="Equals">=</button>
+    </div>
+  </div>
+
+<script>
+  (function() {
+    const display = document.getElementById('display');
+    const buttons = document.querySelectorAll('button');
+    let expression = '';
+
+    function updateDisplay() {
+      display.textContent = expression || '0';
+    }
+
+    function isOperator(char) {
+      return ['+', '−', '×', '÷'].includes(char);
+    }
+
+    function sanitizeExpression(expr) {
+      // Replace operator chars with JS operators
+      return expr.replace(/÷/g, '/').replace(/×/g, '*').replace(/−/g, '-');
+    }
+
+    function calculate(expr) {
+      try {
+        // eslint-disable-next-line no-new-func
+        const func = new Function('return ' + expr);
+        const result = func();
+        if (typeof result === 'number' && isFinite(result)) {
+          return result;
+        }
+        return 'Error';
+      } catch {
+        return 'Error';
+      }
+    }
+
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        const value = button.textContent;
+
+        if (button.id === 'clear') {
+          expression = '';
+          updateDisplay();
+          return;
+        }
+
+        if (button.id === 'equals') {
+          if (expression === '') return;
+          const sanitized = sanitizeExpression(expression);
+          const result = calculate(sanitized);
+          expression = result.toString();
+          updateDisplay();
+          return;
+        }
+
+        // Prevent multiple operators in a row
+        const lastChar = expression.slice(-1);
+        if (isOperator(value)) {
+          if (expression === '') {
+            // Don't allow operator as first char except minus
+            if (value !== '−') return;
+          }
+          if (isOperator(lastChar)) {
+            // Replace last operator with new one
+            expression = expression.slice(0, -1);
+          }
+          expression += value;
+          updateDisplay();
+          return;
+        }
+
+        // For decimal, prevent multiple decimals in a number segment
+        if(value === '.') {
+          const parts = expression.split(/[\+\−\×\÷\(\)]/);
+          const lastPart = parts[parts.length - 1];
+          if (lastPart.includes('.')) {
+            return;
+          }
+        }
+
+        // Append digits, parenthesis, decimal
+        expression += value;
+        updateDisplay();
+      });
+    });
+
+    // Optional: Allow keyboard input
+    window.addEventListener('keydown', e => {
+      const key = e.key;
+      if ((key >= '0' && key <= '9') || key === '.' || key === '(' || key === ')') {
+        expression += key;
+        updateDisplay();
+      }
+      else if (key === 'Backspace') {
+        expression = expression.slice(0, -1);
+        updateDisplay();
+      }
+      else if (key === 'Enter' || key === '=') {
+        if (expression === '') return;
+        const sanitized = sanitizeExpression(expression);
+        const result = calculate(sanitized);
+        expression = result.toString();
+        updateDisplay();
+      }
+      else if (key === '+') {
+        expression += '+';
+        updateDisplay();
+      }
+      else if (key === '-') {
+        expression += '−';
+        updateDisplay();
+      }
+      else if (key === '*') {
+        expression += '×';
+        updateDisplay();
+      }
+      else if (key === '/') {
+        expression += '÷';
+        updateDisplay();
+      }
+    });
+  })();
+</script>
+</body>
+</html>
